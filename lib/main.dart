@@ -5,8 +5,7 @@ import 'app/app.dart';
 import 'app/router.dart';
 import 'core/db/providers.dart';
 import 'core/notifications/notification_service.dart';
-import 'core/sms/sms_permissions.dart';
-import 'core/sms/sms_pipeline.dart';
+import 'core/sms/sms_listener.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,7 +19,9 @@ Future<void> main() async {
 
   NotificationService.onTap = (payload) => appRouter.push(payload.route);
 
-  await _startSmsListener(container);
+  // No-op when permission hasn't been granted yet; settings starts it the
+  // moment the user grants it, without needing a restart.
+  await container.read(smsListenerProvider).ensureStarted();
 
   runApp(
     UncontrolledProviderScope(
@@ -30,33 +31,6 @@ Future<void> main() async {
   );
 
   _consumeLaunchPayload();
-}
-
-/// Registers the foreground SMS listener. Messages that arrive while the
-/// app is killed go through the background handler registered inside the
-/// gateway instead.
-Future<void> _startSmsListener(ProviderContainer container) async {
-  final gateway = container.read(smsGatewayProvider);
-  if (!await gateway.hasPermission()) return;
-
-  final pipeline = SmsPipeline(
-    db: container.read(appDatabaseProvider),
-    notifications: container.read(notificationServiceProvider),
-  );
-
-  try {
-    await gateway.startListening((sms) {
-      pipeline.handle(
-        sender: sms.sender,
-        body: sms.body,
-        receivedAt: sms.receivedAt,
-      );
-    });
-  } catch (error, stack) {
-    // A failure here costs the foreground fast-path only; the background
-    // receiver still works and manual entry is unaffected.
-    debugPrint('Failed to start SMS listener: $error\n$stack');
-  }
 }
 
 void _consumeLaunchPayload() {

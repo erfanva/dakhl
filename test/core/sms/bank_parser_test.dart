@@ -91,6 +91,59 @@ void main() {
     });
   });
 
+  group('real messages', () {
+    // Captured from actual bank SMS. Note the Arabic ك/ي forms, which only
+    // parse because the normalizer unifies them.
+    const samanPurchase = '''بانك سامان
+برداشت مبلغ 1,300,000 خريدکالا
+از  849-800-3897614-1
+مانده 22,033,833
+1405/5/13
+16:27:47''';
+
+    // Blu writes conversationally and never says "مبلغ" — the amount is
+    // only identifiable by the "ریال" that follows it.
+    const bluWithdrawal = '''بلو
+برداشت پول
+عرفان عزیز، 8,305,000 ریال از حساب شما پرید.
+موجودی: 215,922,009 ریال
+۲۰:۲۵
+۱۴۰۵.۰۵.۱۴''';
+
+    test('parses a Saman purchase', () {
+      final result = parser.parse(sender: '200060', body: samanPurchase);
+
+      expect(result, isNotNull);
+      expect(result!.type, TxnType.withdrawal);
+      expect(result.amountRial, 1300000);
+      expect(result.balanceAfterRial, 22033833);
+    });
+
+    test('parses a Blu withdrawal with no amount keyword', () {
+      final result = parser.parse(sender: '2000225', body: bluWithdrawal);
+
+      expect(result, isNotNull);
+      expect(result!.type, TxnType.withdrawal);
+      expect(result.amountRial, 8305000);
+      expect(result.balanceAfterRial, 215922009);
+    });
+
+    test('both still parse when forwarded from a personal number', () {
+      // How they were first tested — the generic fallback has to carry them.
+      for (final body in [samanPurchase, bluWithdrawal]) {
+        final result = parser.parse(sender: '+989123456789', body: body);
+        expect(result, isNotNull, reason: body.split('\n').first);
+        expect(result!.type, TxnType.withdrawal);
+      }
+    });
+
+    test('does not mistake the trailing date or time for an amount', () {
+      final result = parser.parse(sender: '200060', body: samanPurchase);
+      expect(result!.amountRial, isNot(1405));
+      expect(result.amountRial, 1300000);
+    });
+  });
+
   group('sender matching', () {
     test('matches a sender written with a country prefix', () {
       final result = parser.parse(

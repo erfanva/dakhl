@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../db/providers.dart';
 import 'sms_gateway.dart';
@@ -42,14 +43,13 @@ final smsPermissionsProvider = Provider<SmsPermissions>((ref) {
   );
 });
 
+/// Reads current permission state without prompting — opening settings
+/// should show status, not trigger dialogs.
 final smsPermissionStatusProvider =
     FutureProvider.autoDispose<SmsPermissionStatus>((ref) async {
-  final notifications = ref.watch(notificationServiceProvider);
   final gateway = ref.watch(smsGatewayProvider);
   return SmsPermissionStatus(
-    // On Android 13+ this reports the real state; on older versions
-    // notifications are granted at install time and it returns true.
-    notifications: await notifications.requestPermission(),
+    notifications: await Permission.notification.isGranted,
     sms: await gateway.hasPermission(),
   );
 });

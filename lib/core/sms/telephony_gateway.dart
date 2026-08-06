@@ -1,5 +1,6 @@
 import 'package:another_telephony/telephony.dart';
 import 'package:flutter/widgets.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../db/database.dart';
 import '../notifications/notification_service.dart';
@@ -51,11 +52,15 @@ class TelephonySmsGateway implements SmsGateway {
 
   final Telephony _telephony;
 
+  /// A *check*, not a request. The telephony plugin only exposes
+  /// `requestSmsPermissions`, which pops the system dialog — using it as a
+  /// status check meant simply opening settings prompted the user, and made
+  /// "do we have permission?" impossible to answer quietly at startup.
   @override
-  Future<bool> hasPermission() async {
-    return await _telephony.requestSmsPermissions ?? false;
-  }
+  Future<bool> hasPermission() => Permission.sms.isGranted;
 
+  /// Requests through the plugin rather than permission_handler so the
+  /// plugin's own permission bookkeeping stays in sync with reality.
   @override
   Future<bool> requestPermission() async {
     return await _telephony.requestSmsPermissions ?? false;

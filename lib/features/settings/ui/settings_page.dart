@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/sms/sms_listener.dart';
 import '../../../core/sms/sms_permissions.dart';
 
 class SettingsPage extends ConsumerWidget {
@@ -92,9 +93,20 @@ class _PermissionTiles extends ConsumerWidget {
               ? null
               : (_) async {
                   await controller.requestSms();
+                  // Registering the receiver is what actually makes SMS
+                  // arrive; without this the feature stays dead until the
+                  // next app launch.
+                  await ref.read(smsListenerProvider).ensureStarted();
                   ref.invalidate(smsPermissionStatusProvider);
                 },
         ),
+        if (status.sms && !ref.watch(smsListenerProvider).isStarted)
+          ListTile(
+            leading: Icon(Icons.warning_amber,
+                color: Theme.of(context).colorScheme.error),
+            title: const Text('شنونده پیامک فعال نیست'),
+            subtitle: const Text('برای فعال شدن، اپ را یک بار ببند و باز کن'),
+          ),
       ],
     );
   }

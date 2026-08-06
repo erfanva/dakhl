@@ -122,12 +122,16 @@ class BankParser {
   }
 
   String? _firstGroup(String pattern, String body) {
-    final regex = RegExp(pattern);
-    final match = regex.firstMatch(body);
+    final match = RegExp(pattern).firstMatch(body);
     if (match == null) return null;
-    // Prefer the first capturing group; fall back to the whole match for
-    // user-authored patterns written without a group.
-    if (match.groupCount >= 1) return match.group(1);
+    // First non-empty capturing group, so a pattern can offer alternatives
+    // ("مبلغ ۱۲۳" or "۱۲۳ ریال") with a group in each branch — only the
+    // branch that matched has a value. Falls back to the whole match for
+    // user-authored patterns written without any group.
+    for (var i = 1; i <= match.groupCount; i++) {
+      final value = match.group(i);
+      if (value != null && value.isNotEmpty) return value;
+    }
     return match.group(0);
   }
 
