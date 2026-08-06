@@ -12,6 +12,7 @@ import '../features/pending/ui/categorize_sheet.dart';
 import '../features/pending/ui/pending_inbox_page.dart';
 import '../features/settings/ui/settings_page.dart';
 import '../features/settings/ui/sms_patterns_page.dart';
+import '../features/setup/ui/setup_page.dart';
 import '../features/reports/ui/reports_page.dart';
 import '../features/transactions/ui/transactions_page.dart';
 
@@ -33,6 +34,11 @@ final appRouter = GoRouter(
       parentNavigatorKey: rootNavigatorKey,
       path: '/categorize/:id',
       pageBuilder: (context, state) => _categorizeSheetPage(state),
+    ),
+    GoRoute(
+      parentNavigatorKey: rootNavigatorKey,
+      path: '/setup',
+      builder: (context, state) => const SetupPage(),
     ),
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) =>

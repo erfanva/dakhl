@@ -9,6 +9,7 @@ import '../../../core/persian/jalali_utils.dart';
 import '../../../shared/ui/coming_soon_view.dart';
 import '../../../core/db/providers.dart';
 import '../../accounts/providers/accounts_providers.dart';
+import '../../setup/ui/setup_banner.dart';
 import '../providers/transactions_providers.dart';
 import 'transaction_form_sheet.dart';
 
@@ -33,6 +34,7 @@ class TransactionsPage extends ConsumerWidget {
       ),
       body: Column(
         children: [
+          const SetupBanner(),
           if (pendingCount > 0) _PendingBanner(count: pendingCount),
           const _TotalBalanceCard(),
           const _AccountFilterRow(),

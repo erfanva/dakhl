@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:another_telephony/telephony.dart';
 import 'package:flutter/widgets.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -16,6 +18,12 @@ import 'sms_pipeline.dart';
 @pragma('vm:entry-point')
 Future<void> backgroundSmsHandler(SmsMessage message) async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Without this, no plugin method channels exist in this isolate: drift
+  // can't reach path_provider to locate the database file, and the
+  // notification plugin has nothing to call. The telephony plugin sets up
+  // the binding but not the registrant, and it swallows whatever we throw —
+  // which is why a missing registrant looks like "nothing happened".
+  DartPluginRegistrant.ensureInitialized();
 
   final db = AppDatabase();
   try {

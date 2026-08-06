@@ -35,6 +35,13 @@ class SettingsPage extends ConsumerWidget {
             data: (status) => _PermissionTiles(status: status),
           ),
           ListTile(
+            leading: const Icon(Icons.checklist),
+            title: const Text('راه‌اندازی خواندن پیامک'),
+            subtitle: const Text('بررسی دسترسی‌ها و تنظیمات گوشی'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.go('/setup'),
+          ),
+          ListTile(
             leading: const Icon(Icons.rule),
             title: const Text('الگوهای پیامک بانک'),
             subtitle: const Text('افزودن یا ویرایش قواعد تشخیص'),
