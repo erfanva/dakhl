@@ -207,6 +207,47 @@ void main() {
       expect(balances.single.balanceRial, 1000000);
     });
 
+    test('deleting an account leaves its transactions in place', () async {
+      final txnId =
+          await db.transactionsDao.insertTransaction(buildTransactionCompanion(
+        type: TxnType.withdrawal,
+        amountRial: 100000,
+        occurredAt: DateTime.now(),
+        status: TxnStatus.confirmed,
+        source: TxnSource.manual,
+        accountId: accountId,
+      ));
+
+      expect(await db.accountsDao.transactionCount(accountId), 1);
+      await db.accountsDao.deleteAccount(accountId);
+
+      final row = await db.transactionsDao.findById(txnId);
+      expect(row, isNotNull);
+      expect(row!.transaction.accountId, isNull);
+      expect(await db.accountsDao.findById(accountId), isNull);
+    });
+
+    test('archived accounts drop out of the balances stream', () async {
+      await db.accountsDao.archiveAccount(accountId);
+      expect(await db.accountsDao.watchAccountsWithBalances().first, isEmpty);
+
+      await db.accountsDao.unarchiveAccount(accountId);
+      expect(await db.accountsDao.watchAccountsWithBalances().first,
+          hasLength(1));
+    });
+
+    test('nextSortOrder places new accounts last', () async {
+      final next = await db.accountsDao.nextSortOrder();
+      await db.accountsDao.insertAccount(
+        AccountsCompanion.insert(
+          name: 'حساب دوم',
+          sortOrder: Value(next),
+          createdAt: DateTime.now(),
+        ),
+      );
+      expect(await db.accountsDao.nextSortOrder(), next + 1);
+    });
+
     test('matches an account by SMS suffix', () async {
       await db.accountsDao.insertAccount(
         AccountsCompanion.insert(
@@ -299,6 +340,126 @@ void main() {
       expect(row.transaction.confirmedAt, isNotNull);
       expect(row.category?.name, 'پرداخت بدهی');
       expect(row.transaction.note, 'قسط وام');
+    });
+
+    test('watchCategoryTotals groups confirmed spend per category', () async {
+      const month = JalaliMonth(1405, 5);
+      final food = await db.categoriesDao.insertCategory(
+        CategoriesCompanion.insert(
+          name: 'خوراک تست',
+          kind: CategoryKind.expense,
+          createdAt: DateTime.now(),
+        ),
+      );
+      final transport = await db.categoriesDao.insertCategory(
+        CategoriesCompanion.insert(
+          name: 'حمل‌ونقل تست',
+          kind: CategoryKind.expense,
+          createdAt: DateTime.now(),
+        ),
+      );
+
+      Future<void> spend(int categoryId, int amountRial) {
+        return db.transactionsDao.insertTransaction(buildTransactionCompanion(
+          type: TxnType.withdrawal,
+          amountRial: amountRial,
+          occurredAt: month.start,
+          status: TxnStatus.confirmed,
+          source: TxnSource.manual,
+          categoryId: categoryId,
+        ));
+      }
+
+      await spend(food, 300000);
+      await spend(food, 200000);
+      await spend(transport, 400000);
+
+      final totals = await db.transactionsDao
+          .watchCategoryTotals(month: month, type: TxnType.withdrawal)
+          .first;
+
+      // Largest first.
+      expect(totals.map((t) => t.category?.name),
+          ['خوراک تست', 'حمل‌ونقل تست']);
+      expect(totals.map((t) => t.totalRial), [500000, 400000]);
+    });
+
+    test('watchCategoryTotals keeps uncategorized rows as a null category',
+        () async {
+      const month = JalaliMonth(1405, 5);
+      await db.transactionsDao.insertTransaction(buildTransactionCompanion(
+        type: TxnType.withdrawal,
+        amountRial: 150000,
+        occurredAt: month.start,
+        status: TxnStatus.confirmed,
+        source: TxnSource.manual,
+      ));
+
+      final totals = await db.transactionsDao
+          .watchCategoryTotals(month: month, type: TxnType.withdrawal)
+          .first;
+
+      expect(totals, hasLength(1));
+      expect(totals.single.category, isNull);
+      expect(totals.single.totalRial, 150000);
+    });
+
+    test('watchCategoryTotals excludes pending rows and the other direction',
+        () async {
+      const month = JalaliMonth(1405, 5);
+      await db.transactionsDao.insertTransaction(buildTransactionCompanion(
+        type: TxnType.withdrawal,
+        amountRial: 500000,
+        occurredAt: month.start,
+        status: TxnStatus.pending,
+        source: TxnSource.sms,
+      ));
+      await db.transactionsDao.insertTransaction(buildTransactionCompanion(
+        type: TxnType.deposit,
+        amountRial: 900000,
+        occurredAt: month.start,
+        status: TxnStatus.confirmed,
+        source: TxnSource.manual,
+      ));
+
+      final expenses = await db.transactionsDao
+          .watchCategoryTotals(month: month, type: TxnType.withdrawal)
+          .first;
+      expect(expenses, isEmpty);
+
+      final income = await db.transactionsDao
+          .watchCategoryTotals(month: month, type: TxnType.deposit)
+          .first;
+      expect(income.single.totalRial, 900000);
+    });
+
+    test('watchMonthlyTotals returns one entry per requested month',
+        () async {
+      const first = JalaliMonth(1405, 4);
+      const second = JalaliMonth(1405, 5);
+      await db.transactionsDao.insertTransaction(buildTransactionCompanion(
+        type: TxnType.deposit,
+        amountRial: 100000,
+        occurredAt: first.start,
+        status: TxnStatus.confirmed,
+        source: TxnSource.manual,
+      ));
+      await db.transactionsDao.insertTransaction(buildTransactionCompanion(
+        type: TxnType.withdrawal,
+        amountRial: 250000,
+        occurredAt: second.start,
+        status: TxnStatus.confirmed,
+        source: TxnSource.manual,
+      ));
+
+      final trend =
+          await db.transactionsDao.watchMonthlyTotals([first, second]).first;
+
+      expect(trend.map((t) => t.month), [first, second]);
+      expect(trend.first.incomeRial, 100000);
+      expect(trend.first.netRial, 100000);
+      expect(trend.last.expenseRial, 250000);
+      expect(trend.last.netRial, -250000);
     });
 
     test('monthTotals sums income and expense separately', () async {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/db/database.dart';
 import '../../../core/db/providers.dart';
@@ -123,10 +124,18 @@ class _CategoryTile extends ConsumerWidget {
       ),
       title: Text(category.name),
       subtitle: Text(categoryKindLabel(category.kind)),
-      onTap: () => showCategoryFormSheet(context, existing: category),
+      // Tap opens the month's activity; the edit action is on the sheet
+      // reachable from the detail page's app bar.
+      onTap: () => context.go('/more/categories/${category.id}'),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
+          IconButton(
+            icon: const Icon(Icons.edit_outlined),
+            tooltip: 'ویرایش',
+            onPressed: () =>
+                showCategoryFormSheet(context, existing: category),
+          ),
           if (!category.isSystem)
             IconButton(
               icon: const Icon(Icons.delete_outline),

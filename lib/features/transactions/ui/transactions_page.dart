@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/db/database.dart';
 import '../../../core/money/money.dart';
@@ -21,6 +22,13 @@ class TransactionsPage extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('تراکنش‌ها'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.account_balance_wallet_outlined),
+            tooltip: 'حساب‌ها',
+            onPressed: () => context.go('/transactions/accounts'),
+          ),
+        ],
       ),
       body: Column(
         children: [

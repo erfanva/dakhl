@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../features/accounts/ui/accounts_page.dart';
 import '../features/budgets/ui/placeholder_month_plan_page.dart';
 import '../features/categories/ui/categories_page.dart';
+import '../features/categories/ui/category_detail_page.dart';
 import '../features/debts/ui/placeholder_debts_page.dart';
 import '../features/more/ui/more_page.dart';
-import '../features/reports/ui/placeholder_reports_page.dart';
+import '../features/reports/ui/reports_page.dart';
 import '../features/transactions/ui/transactions_page.dart';
 
 /// Root navigator key so modal routes (like the future SMS categorize
@@ -30,6 +32,12 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/transactions',
               builder: (context, state) => const TransactionsPage(),
+              routes: [
+                GoRoute(
+                  path: 'accounts',
+                  builder: (context, state) => const AccountsPage(),
+                ),
+              ],
             ),
           ],
         ),
@@ -56,7 +64,15 @@ final appRouter = GoRouter(
           routes: [
             GoRoute(
               path: '/reports',
-              builder: (context, state) => const PlaceholderReportsPage(),
+              builder: (context, state) => const ReportsPage(),
+              routes: [
+                GoRoute(
+                  path: 'category/:id',
+                  builder: (context, state) => CategoryDetailPage(
+                    categoryId: int.parse(state.pathParameters['id']!),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -70,6 +86,14 @@ final appRouter = GoRouter(
                 GoRoute(
                   path: 'categories',
                   builder: (context, state) => const CategoriesPage(),
+                  routes: [
+                    GoRoute(
+                      path: ':id',
+                      builder: (context, state) => CategoryDetailPage(
+                        categoryId: int.parse(state.pathParameters['id']!),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

@@ -73,6 +73,37 @@ class AccountsDao extends DatabaseAccessor<AppDatabase> with _$AccountsDaoMixin 
         .write(const AccountsCompanion(isArchived: Value(true)));
   }
 
+  Future<void> unarchiveAccount(int id) {
+    return (update(accounts)..where((a) => a.id.equals(id)))
+        .write(const AccountsCompanion(isArchived: Value(false)));
+  }
+
+  /// Deleting an account leaves its transactions in place — the foreign key
+  /// is `ON DELETE SET NULL`, so they simply lose their account.
+  Future<int> deleteAccount(int id) =>
+      (delete(accounts)..where((a) => a.id.equals(id))).go();
+
+  /// How many transactions are attached to this account, to warn before a
+  /// delete.
+  Future<int> transactionCount(int accountId) async {
+    final count = transactions.id.count();
+    final query = selectOnly(transactions)
+      ..addColumns([count])
+      ..where(transactions.accountId.equals(accountId));
+    return await query.map((row) => row.read(count)).getSingle() ?? 0;
+  }
+
+  /// Sort order that places a new account after every existing one.
+  Future<int> nextSortOrder() async {
+    final maxOrder = accounts.sortOrder.max();
+    final query = selectOnly(accounts)..addColumns([maxOrder]);
+    final current = await query.map((row) => row.read(maxOrder)).getSingle();
+    return (current ?? -1) + 1;
+  }
+
+  Future<Account?> findById(int id) =>
+      (select(accounts)..where((a) => a.id.equals(id))).getSingleOrNull();
+
   /// Finds the account whose suffix matches the end of an SMS's account
   /// reference (e.g. card's last 4 digits), if any.
   Future<Account?> findBySuffix(String digitsFromSms) async {

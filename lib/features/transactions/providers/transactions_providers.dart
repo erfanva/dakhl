@@ -36,10 +36,3 @@ final monthTransactionsProvider =
 final pendingCountProvider = StreamProvider.autoDispose<int>((ref) {
   return ref.watch(transactionsDaoProvider).watchPendingCount();
 });
-
-final monthTotalsProvider = FutureProvider.autoDispose((ref) async {
-  final month = ref.watch(selectedMonthProvider);
-  // Re-run whenever the month's transactions change.
-  ref.watch(monthTransactionsProvider);
-  return ref.watch(transactionsDaoProvider).monthTotals(month);
-});

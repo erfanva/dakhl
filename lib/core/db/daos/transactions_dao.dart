@@ -167,4 +167,103 @@ class TransactionsDao extends DatabaseAccessor<AppDatabase>
         (await expense.getSingle()).read(transactions.amountRial.sum()) ?? 0;
     return (incomeRial: incomeRial, expenseRial: expenseRial);
   }
+
+  /// Reactive [monthTotals], for report screens that should follow edits.
+  Stream<MonthTotals> watchMonthTotals(JalaliMonth month) {
+    // Any write to `transactions` invalidates the aggregate, so drive the
+    // recompute off the table itself rather than a hand-rolled join.
+    return _tableChanges().asyncMap((_) async {
+      final totals = await monthTotals(month);
+      return MonthTotals(
+        month: month,
+        incomeRial: totals.incomeRial,
+        expenseRial: totals.expenseRial,
+      );
+    });
+  }
+
+  /// Income and expense per month across [months], oldest first — the
+  /// trend chart's data source.
+  Stream<List<MonthTotals>> watchMonthlyTotals(List<JalaliMonth> months) {
+    return _tableChanges().asyncMap((_) async {
+      final result = <MonthTotals>[];
+      for (final month in months) {
+        final totals = await monthTotals(month);
+        result.add(MonthTotals(
+          month: month,
+          incomeRial: totals.incomeRial,
+          expenseRial: totals.expenseRial,
+        ));
+      }
+      return result;
+    });
+  }
+
+  /// Confirmed totals per category for [month] and [type], largest first.
+  /// Uncategorized rows collapse into a single entry with a null category.
+  Stream<List<CategoryTotal>> watchCategoryTotals({
+    required JalaliMonth month,
+    required TxnType type,
+  }) {
+    final sum = transactions.amountRial.sum();
+    // Aggregate over transactions alone, then attach the Category rows in
+    // Dart: a joined table can't be read back off a grouped `selectOnly`
+    // result, since the group key rather than the join drives the row.
+    final query = selectOnly(transactions)
+      ..addColumns([sum, transactions.categoryId])
+      ..where(transactions.jYear.equals(month.year) &
+          transactions.jMonth.equals(month.month) &
+          transactions.status.equalsValue(TxnStatus.confirmed) &
+          transactions.type.equalsValue(type))
+      ..groupBy([transactions.categoryId])
+      ..orderBy([OrderingTerm.desc(sum)]);
+
+    return query.watch().asyncMap((rows) async {
+      final byId = {
+        for (final category in await select(categories).get())
+          category.id: category,
+      };
+      return rows
+          .map((row) {
+            final categoryId = row.read(transactions.categoryId);
+            return CategoryTotal(
+              category: categoryId == null ? null : byId[categoryId],
+              totalRial: row.read(sum) ?? 0,
+            );
+          })
+          .where((entry) => entry.totalRial > 0)
+          .toList();
+    });
+  }
+
+  /// Emits once immediately and again on every write to `transactions`.
+  Stream<void> _tableChanges() {
+    final query = selectOnly(transactions)
+      ..addColumns([transactions.id.count()]);
+    return query.watch();
+  }
+}
+
+/// Income/expense totals for one Jalali month.
+class MonthTotals {
+  const MonthTotals({
+    required this.month,
+    required this.incomeRial,
+    required this.expenseRial,
+  });
+
+  final JalaliMonth month;
+  final int incomeRial;
+  final int expenseRial;
+
+  int get netRial => incomeRial - expenseRial;
+}
+
+/// One slice of the category breakdown. [category] is null for
+/// transactions that were never categorized.
+class CategoryTotal {
+  const CategoryTotal({required this.category, required this.totalRial});
+
+  final Category? category;
+  final int totalRial;
 }
