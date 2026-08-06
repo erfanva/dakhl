@@ -35,6 +35,21 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- another_telephony ships no receiver in its own manifest, so the
+             app has to declare it. Without this Android never delivers SMS
+             to us at all — not in the background, not even with the app in
+             the foreground.
+             The BROADCAST_SMS permission ensures only the system can invoke
+             it, so another app can't fake a transaction. -->
+        <receiver
+            android:name="com.shounakmulay.telephony.sms.IncomingSmsReceiver"
+            android:permission="android.permission.BROADCAST_SMS"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.provider.Telephony.SMS_RECEIVED"/>
+            </intent-filter>
+        </receiver>
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
