@@ -8838,6 +8838,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   );
   late final AccountsDao accountsDao = AccountsDao(this as AppDatabase);
   late final CategoriesDao categoriesDao = CategoriesDao(this as AppDatabase);
+  late final SmsPatternsDao smsPatternsDao = SmsPatternsDao(
+    this as AppDatabase,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();

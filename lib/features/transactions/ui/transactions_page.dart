@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/db/database.dart';
 import '../../../core/money/money.dart';
+import '../../../core/persian/digits.dart';
 import '../../../core/persian/jalali_utils.dart';
 import '../../../shared/ui/coming_soon_view.dart';
 import '../../../core/db/providers.dart';
@@ -58,9 +59,7 @@ class _PendingBanner extends StatelessWidget {
     return Material(
       color: theme.colorScheme.tertiaryContainer,
       child: InkWell(
-        onTap: () {
-          // TODO(phase-3): open pending inbox / categorize sheet.
-        },
+        onTap: () => context.go('/transactions/pending'),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
@@ -70,11 +69,11 @@ class _PendingBanner extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  '$count تراکنش در انتظار دسته‌بندی',
+                  '${toPersianDigits('$count')} تراکنش در انتظار دسته‌بندی',
                   style: TextStyle(color: theme.colorScheme.onTertiaryContainer),
                 ),
               ),
-              Icon(Icons.chevron_left, color: theme.colorScheme.onTertiaryContainer),
+              Icon(Icons.chevron_right, color: theme.colorScheme.onTertiaryContainer),
             ],
           ),
         ),

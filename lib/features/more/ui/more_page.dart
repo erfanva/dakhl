@@ -25,11 +25,12 @@ class MorePage extends StatelessWidget {
             subtitle: Text('به‌زودی'),
             enabled: false,
           ),
-          const ListTile(
-            leading: Icon(Icons.settings_outlined),
-            title: Text('تنظیمات'),
-            subtitle: Text('به‌زودی'),
-            enabled: false,
+          ListTile(
+            leading: const Icon(Icons.settings_outlined),
+            title: const Text('تنظیمات'),
+            subtitle: const Text('دسترسی‌ها و الگوهای پیامک بانک'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.go('/more/settings'),
           ),
         ],
       ),

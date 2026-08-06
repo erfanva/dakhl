@@ -4,12 +4,15 @@ import 'package:drift_flutter/drift_flutter.dart';
 import '../persian/jalali_utils.dart';
 import 'daos/accounts_dao.dart';
 import 'daos/categories_dao.dart';
+import 'daos/sms_patterns_dao.dart';
 import 'daos/transactions_dao.dart';
+import '../sms/parser/seed_patterns.dart';
 import 'seed_categories.dart';
 import 'tables.dart';
 
 export 'daos/accounts_dao.dart';
 export 'daos/categories_dao.dart';
+export 'daos/sms_patterns_dao.dart';
 export 'daos/transactions_dao.dart';
 export 'tables.dart';
 
@@ -39,7 +42,7 @@ part 'database.g.dart';
     WishLinks,
     WishImages,
   ],
-  daos: [TransactionsDao, AccountsDao, CategoriesDao],
+  daos: [TransactionsDao, AccountsDao, CategoriesDao, SmsPatternsDao],
 )
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
@@ -55,9 +58,14 @@ class AppDatabase extends _$AppDatabase {
           await m.createAll();
           await _createIndexes();
           await seedSystemCategories(this);
+          await seedSmsPatterns(this);
         },
         beforeOpen: (details) async {
           await customStatement('PRAGMA foreign_keys = ON');
+          // Re-run on every open so an app update that adds a bank reaches
+          // existing installs. Banks the user already has are left alone,
+          // including any edits they made.
+          await seedSmsPatterns(this);
         },
       );
 

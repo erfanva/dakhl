@@ -5,8 +5,13 @@ import '../features/accounts/ui/accounts_page.dart';
 import '../features/budgets/ui/placeholder_month_plan_page.dart';
 import '../features/categories/ui/categories_page.dart';
 import '../features/categories/ui/category_detail_page.dart';
+import '../features/debug/ui/sms_injector_page.dart';
 import '../features/debts/ui/placeholder_debts_page.dart';
 import '../features/more/ui/more_page.dart';
+import '../features/pending/ui/categorize_sheet.dart';
+import '../features/pending/ui/pending_inbox_page.dart';
+import '../features/settings/ui/settings_page.dart';
+import '../features/settings/ui/sms_patterns_page.dart';
 import '../features/reports/ui/reports_page.dart';
 import '../features/transactions/ui/transactions_page.dart';
 
@@ -22,6 +27,13 @@ final appRouter = GoRouter(
   navigatorKey: rootNavigatorKey,
   initialLocation: '/transactions',
   routes: [
+    // Above the shell so a notification tap can open it over any tab, and
+    // on cold start before a tab is even chosen.
+    GoRoute(
+      parentNavigatorKey: rootNavigatorKey,
+      path: '/categorize/:id',
+      pageBuilder: (context, state) => _categorizeSheetPage(state),
+    ),
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) =>
           _AppShell(navigationShell: navigationShell),
@@ -36,6 +48,10 @@ final appRouter = GoRouter(
                 GoRoute(
                   path: 'accounts',
                   builder: (context, state) => const AccountsPage(),
+                ),
+                GoRoute(
+                  path: 'pending',
+                  builder: (context, state) => const PendingInboxPage(),
                 ),
               ],
             ),
@@ -84,6 +100,20 @@ final appRouter = GoRouter(
               builder: (context, state) => const MorePage(),
               routes: [
                 GoRoute(
+                  path: 'settings',
+                  builder: (context, state) => const SettingsPage(),
+                  routes: [
+                    GoRoute(
+                      path: 'sms-patterns',
+                      builder: (context, state) => const SmsPatternsPage(),
+                    ),
+                    GoRoute(
+                      path: 'sms-injector',
+                      builder: (context, state) => const SmsInjectorPage(),
+                    ),
+                  ],
+                ),
+                GoRoute(
                   path: 'categories',
                   builder: (context, state) => const CategoriesPage(),
                   routes: [
@@ -129,6 +159,34 @@ class _AppShell extends StatelessWidget {
         ),
         destinations: _destinations,
       ),
+    );
+  }
+}
+
+/// The categorize sheet rendered as a modal route, so notification deep
+/// links land on a real navigator entry that can be popped normally.
+Page<void> _categorizeSheetPage(GoRouterState state) {
+  final id = int.tryParse(state.pathParameters['id'] ?? '');
+  return ModalBottomSheetPage(
+    child: id == null
+        ? const SizedBox.shrink()
+        : CategorizeSheet(transactionId: id),
+  );
+}
+
+/// Minimal Page wrapper that shows its child in a modal bottom sheet.
+class ModalBottomSheetPage extends Page<void> {
+  const ModalBottomSheetPage({required this.child, super.key});
+
+  final Widget child;
+
+  @override
+  Route<void> createRoute(BuildContext context) {
+    return ModalBottomSheetRoute<void>(
+      settings: this,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (context) => child,
     );
   }
 }
