@@ -47,6 +47,100 @@ void main() {
     });
   });
 
+  group('category CRUD', () {
+    Future<int> addCategory(String name, {CategoryKind? kind}) async {
+      return db.categoriesDao.insertCategory(
+        CategoriesCompanion.insert(
+          name: name,
+          kind: kind ?? CategoryKind.expense,
+          sortOrder: Value(await db.categoriesDao.nextSortOrder()),
+          createdAt: DateTime.now(),
+        ),
+      );
+    }
+
+    test('inserts a user category that shows up in the stream', () async {
+      await addCategory('سفر');
+      final expenses = await db.categoriesDao
+          .watchCategories(kind: CategoryKind.expense)
+          .first;
+      expect(expenses.map((c) => c.name), contains('سفر'));
+    });
+
+    test('nextSortOrder places new categories last', () async {
+      final firstOrder = await db.categoriesDao.nextSortOrder();
+      await addCategory('سفر');
+      expect(await db.categoriesDao.nextSortOrder(), firstOrder + 1);
+    });
+
+    test('renames and re-kinds an existing category', () async {
+      final id = await addCategory('سفر');
+      final category = await db.categoriesDao.findById(id);
+
+      await db.categoriesDao.updateCategory(
+        category!.copyWith(name: 'سفر و تفریح', kind: CategoryKind.both),
+      );
+
+      final updated = await db.categoriesDao.findById(id);
+      expect(updated!.name, 'سفر و تفریح');
+      expect(updated.kind, CategoryKind.both);
+    });
+
+    test('deletes a user category', () async {
+      final id = await addCategory('سفر');
+      expect(await db.categoriesDao.deleteCategory(id), 1);
+      expect(await db.categoriesDao.findById(id), isNull);
+    });
+
+    test('refuses to delete a system category', () async {
+      final system = await db.categoriesDao
+          .findBySystemKey(SystemCategoryKeys.debtPayment);
+
+      expect(await db.categoriesDao.deleteCategory(system!.id), 0);
+      expect(await db.categoriesDao.findById(system.id), isNotNull);
+    });
+
+    test('deleting a category leaves its transactions uncategorized',
+        () async {
+      final id = await addCategory('سفر');
+      final txnId =
+          await db.transactionsDao.insertTransaction(buildTransactionCompanion(
+        type: TxnType.withdrawal,
+        amountRial: 100000,
+        occurredAt: DateTime.now(),
+        status: TxnStatus.confirmed,
+        source: TxnSource.manual,
+        categoryId: id,
+      ));
+
+      expect(await db.categoriesDao.transactionCount(id), 1);
+      await db.categoriesDao.deleteCategory(id);
+
+      final row = await db.transactionsDao.findById(txnId);
+      expect(row, isNotNull, reason: 'the transaction must survive');
+      expect(row!.transaction.categoryId, isNull);
+      expect(row.category, isNull);
+    });
+
+    test('transactionCount is zero for an unused category', () async {
+      final id = await addCategory('سفر');
+      expect(await db.categoriesDao.transactionCount(id), 0);
+    });
+
+    test('applyOrder rewrites sortOrder to match the given sequence',
+        () async {
+      final a = await addCategory('الف');
+      final b = await addCategory('ب');
+      final c = await addCategory('ج');
+
+      await db.categoriesDao.applyOrder([c, a, b]);
+
+      expect((await db.categoriesDao.findById(c))!.sortOrder, 0);
+      expect((await db.categoriesDao.findById(a))!.sortOrder, 1);
+      expect((await db.categoriesDao.findById(b))!.sortOrder, 2);
+    });
+  });
+
   group('buildTransactionCompanion', () {
     test('derives the Jalali month columns from occurredAt', () async {
       final occurredAt = const JalaliMonth(1405, 5).start;

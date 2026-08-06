@@ -19,6 +19,14 @@ enum DisplayUnit {
 abstract final class Money {
   static const _thousandsSeparator = '٬';
 
+  /// Wraps a numeric run in a Unicode LTR isolate (LRI … PDI).
+  ///
+  /// A leading `−` is bidi-neutral, so inside Persian (RTL) text it gets
+  /// reordered to the trailing side — `−۵٬۰۰۰` would render as `۵٬۰۰۰−`.
+  /// Only the digits and sign are isolated; the unit label stays outside so
+  /// RTL still places it to the left of the number (`تومان ۱۲٬۵۰۰`).
+  static String _isolate(String number) => '\u2066$number\u2069';
+
   /// Formats a Rial amount for display, e.g. `۱۲٬۵۰۰٬۰۰۰ تومان`.
   static String format(
     int amountRial, {
@@ -30,7 +38,7 @@ abstract final class Money {
     final value = amountRial.abs() ~/ unit.divisor;
     final grouped = groupDigits(value.toString());
     final sign = negative ? '−' : (signed ? '+' : '');
-    final body = '$sign${toPersianDigits(grouped)}';
+    final body = _isolate('$sign${toPersianDigits(grouped)}');
     return withLabel ? '$body ${unit.label}' : body;
   }
 
@@ -39,16 +47,13 @@ abstract final class Money {
       {DisplayUnit unit = DisplayUnit.toman}) {
     final value = amountRial.abs() ~/ unit.divisor;
     final sign = amountRial < 0 ? '−' : '';
-    if (value >= 1000000000) {
-      return '$sign${toPersianDigits(_trim(value / 1000000000))} میلیارد';
-    }
-    if (value >= 1000000) {
-      return '$sign${toPersianDigits(_trim(value / 1000000))} میلیون';
-    }
-    if (value >= 1000) {
-      return '$sign${toPersianDigits(_trim(value / 1000))} هزار';
-    }
-    return '$sign${toPersianDigits(value.toString())}';
+    String scaled(double v, String suffix) =>
+        '${_isolate('$sign${toPersianDigits(_trim(v))}')} $suffix';
+
+    if (value >= 1000000000) return scaled(value / 1000000000, 'میلیارد');
+    if (value >= 1000000) return scaled(value / 1000000, 'میلیون');
+    if (value >= 1000) return scaled(value / 1000, 'هزار');
+    return _isolate('$sign${toPersianDigits(value.toString())}');
   }
 
   /// Inserts thousands separators into a latin digit string.

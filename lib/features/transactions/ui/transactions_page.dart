@@ -176,13 +176,18 @@ class _MonthSwitcher extends ConsumerWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          // The chevrons are matchTextDirection icons, so they mirror
+          // themselves under RTL — name them by their logical direction and
+          // let Flutter flip both the icon and the Row order.
           IconButton(
-            icon: const Icon(Icons.chevron_right),
+            icon: const Icon(Icons.chevron_left),
+            tooltip: 'ماه قبل',
             onPressed: notifier.previous,
           ),
           Text(month.label, style: Theme.of(context).textTheme.titleMedium),
           IconButton(
-            icon: const Icon(Icons.chevron_left),
+            icon: const Icon(Icons.chevron_right),
+            tooltip: 'ماه بعد',
             onPressed: notifier.next,
           ),
         ],
@@ -302,8 +307,10 @@ class _TransactionTile extends ConsumerWidget {
           JalaliUtils.formatTime(txn.occurredAt),
           if (txn.note?.isNotEmpty ?? false) txn.note!,
         ].join(' · ')),
+        // No +/− sign: the icon and the colour already say deposit vs
+        // withdrawal. RTL puts the «تومان» label to the left of the digits.
         trailing: Text(
-          '${isDeposit ? '+' : '−'} ${Money.format(txn.amountRial, withLabel: false)}',
+          Money.format(txn.amountRial),
           style: TextStyle(color: color, fontWeight: FontWeight.bold),
         ),
         onTap: () => showTransactionFormSheet(context, existing: txn),

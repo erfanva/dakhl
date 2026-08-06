@@ -1,39 +1,54 @@
 import 'package:dakhl/core/money/money.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+/// Strips the Unicode LTR-isolate markers that [Money] wraps numbers in, so
+/// assertions can read as the user sees them.
+String plain(String formatted) =>
+    formatted.replaceAll('\u2066', '').replaceAll('\u2069', '');
+
 void main() {
   group('format', () {
     test('renders Rial as Toman with Persian digits and separators', () {
-      expect(Money.format(125000000), '۱۲٬۵۰۰٬۰۰۰ تومان');
+      expect(plain(Money.format(125000000)), '۱۲٬۵۰۰٬۰۰۰ تومان');
     });
 
     test('can render in Rial', () {
       expect(
-        Money.format(125000000, unit: DisplayUnit.rial),
+        plain(Money.format(125000000, unit: DisplayUnit.rial)),
         '۱۲۵٬۰۰۰٬۰۰۰ ریال',
       );
     });
 
     test('omits the label when asked', () {
-      expect(Money.format(50000, withLabel: false), '۵٬۰۰۰');
+      expect(plain(Money.format(50000, withLabel: false)), '۵٬۰۰۰');
     });
 
     test('marks negatives with a minus sign', () {
-      expect(Money.format(-50000, withLabel: false), '−۵٬۰۰۰');
+      expect(plain(Money.format(-50000, withLabel: false)), '−۵٬۰۰۰');
+    });
+
+    test('isolates the digits but leaves the unit label outside', () {
+      // RTL then renders the label to the left of the number, and the minus
+      // stays glued to the left of the digits.
+      expect(Money.format(-50000), '\u2066−۵٬۰۰۰\u2069 تومان');
     });
   });
 
   group('formatCompact', () {
     test('abbreviates millions', () {
-      expect(Money.formatCompact(125000000), '۱۲٫۵ میلیون');
+      expect(plain(Money.formatCompact(125000000)), '۱۲٫۵ میلیون');
     });
 
     test('abbreviates thousands', () {
-      expect(Money.formatCompact(2500000), '۲۵۰ هزار');
+      expect(plain(Money.formatCompact(2500000)), '۲۵۰ هزار');
     });
 
     test('leaves small amounts unabbreviated', () {
-      expect(Money.formatCompact(5000), '۵۰۰');
+      expect(plain(Money.formatCompact(5000)), '۵۰۰');
+    });
+
+    test('keeps the scale word outside the isolate', () {
+      expect(Money.formatCompact(125000000), '\u2066۱۲٫۵\u2069 میلیون');
     });
   });
 
@@ -57,6 +72,10 @@ void main() {
 
   test('parse and format round-trip', () {
     final rial = Money.parse('۳۴٬۵۰۰')!;
-    expect(Money.format(rial), '۳۴٬۵۰۰ تومان');
+    expect(plain(Money.format(rial)), '۳۴٬۵۰۰ تومان');
+  });
+
+  test('parse accepts its own isolate-wrapped output', () {
+    expect(Money.parse(Money.format(34500, withLabel: false)), 34500);
   });
 }

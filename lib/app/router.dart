@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/budgets/ui/placeholder_month_plan_page.dart';
+import '../features/categories/ui/categories_page.dart';
 import '../features/debts/ui/placeholder_debts_page.dart';
 import '../features/more/ui/more_page.dart';
 import '../features/reports/ui/placeholder_reports_page.dart';
@@ -65,6 +66,12 @@ final appRouter = GoRouter(
             GoRoute(
               path: '/more',
               builder: (context, state) => const MorePage(),
+              routes: [
+                GoRoute(
+                  path: 'categories',
+                  builder: (context, state) => const CategoriesPage(),
+                ),
+              ],
             ),
           ],
         ),

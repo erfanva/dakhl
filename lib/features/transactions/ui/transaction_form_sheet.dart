@@ -5,9 +5,13 @@ import 'package:persian_datetime_picker/persian_datetime_picker.dart';
 
 import '../../../core/db/database.dart';
 import '../../../core/db/providers.dart';
+import '../../../core/money/amount_input_formatter.dart';
 import '../../../core/money/money.dart';
+import '../../../core/persian/digits.dart';
 import '../../accounts/providers/accounts_providers.dart';
+import '../../categories/category_style.dart';
 import '../../categories/providers/categories_providers.dart';
+import '../../categories/ui/category_form_sheet.dart';
 
 /// Opens the manual add/edit transaction sheet. Pass [existing] to edit.
 Future<void> showTransactionFormSheet(BuildContext context,
@@ -49,8 +53,8 @@ class _TransactionFormSheetState extends ConsumerState<_TransactionFormSheet> {
     _accountId = existing?.accountId;
     _categoryId = existing?.categoryId;
     if (existing != null) {
-      _amountController.text =
-          Money.groupDigits((existing!.amountRial ~/ 10).toString());
+      _amountController.text = toPersianDigits(
+          Money.groupDigits((existing!.amountRial ~/ 10).toString()));
       _noteController.text = existing!.note ?? '';
     }
   }
@@ -73,19 +77,32 @@ class _TransactionFormSheetState extends ConsumerState<_TransactionFormSheet> {
       padding: EdgeInsets.only(
         left: 20,
         right: 20,
-        top: 20,
+        top: 8,
         bottom: MediaQuery.of(context).viewInsets.bottom + 20,
       ),
       child: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              existing == null ? 'ثبت تراکنش' : 'ویرایش تراکنش',
-              style: Theme.of(context).textTheme.titleLarge,
-              textAlign: TextAlign.center,
+            Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  tooltip: 'بستن',
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+                Expanded(
+                  child: Text(
+                    existing == null ? 'ثبت تراکنش' : 'ویرایش تراکنش',
+                    style: Theme.of(context).textTheme.titleLarge,
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                // Balances the close button so the title stays centered.
+                const SizedBox(width: 48),
+              ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
             SegmentedButton<TxnType>(
               segments: const [
                 ButtonSegment(value: TxnType.withdrawal, label: Text('برداشت')),
@@ -102,6 +119,9 @@ class _TransactionFormSheetState extends ConsumerState<_TransactionFormSheet> {
               controller: _amountController,
               keyboardType: TextInputType.number,
               textAlign: TextAlign.center,
+              // Digits read left-to-right even in an RTL form.
+              textDirection: TextDirection.ltr,
+              inputFormatters: const [PersianAmountInputFormatter()],
               style: Theme.of(context).textTheme.headlineSmall,
               decoration: const InputDecoration(
                 labelText: 'مبلغ (تومان)',
@@ -124,6 +144,7 @@ class _TransactionFormSheetState extends ConsumerState<_TransactionFormSheet> {
             _CategoryGrid(
               categories: categories,
               value: _categoryId,
+              kind: categoryKind,
               onChanged: (id) => setState(() => _categoryId = id),
             ),
             const SizedBox(height: 12),
@@ -276,27 +297,42 @@ class _AccountPicker extends StatelessWidget {
 }
 
 class _CategoryGrid extends StatelessWidget {
-  const _CategoryGrid({required this.categories, required this.value, required this.onChanged});
+  const _CategoryGrid({
+    required this.categories,
+    required this.value,
+    required this.kind,
+    required this.onChanged,
+  });
 
   final List<Category> categories;
   final int? value;
+  final CategoryKind kind;
   final ValueChanged<int> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    if (categories.isEmpty) {
-      return const Text('دسته‌بندی‌ای موجود نیست');
-    }
     return Wrap(
       spacing: 8,
       runSpacing: 8,
       children: [
         for (final c in categories)
           ChoiceChip(
+            avatar: Icon(c.icon, size: 18, color: c.color(context)),
             label: Text(c.name),
             selected: value == c.id,
             onSelected: (_) => onChanged(c.id),
           ),
+        // Lets the user add a missing category without leaving the form,
+        // mirroring the "+ حساب جدید" affordance on the account picker.
+        ActionChip(
+          avatar: const Icon(Icons.add, size: 18),
+          label: const Text('دسته جدید'),
+          onPressed: () async {
+            final id =
+                await showCategoryFormSheet(context, initialKind: kind);
+            if (id != null) onChanged(id);
+          },
+        ),
       ],
     );
   }
