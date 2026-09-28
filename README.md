@@ -12,10 +12,13 @@ opens a one-tap categorization sheet.
 | Area | Status |
 |---|---|
 | Manual transactions, Jalali-grouped ledger | ✅ Phase 1 |
-| Accounts with computed balances, categories, charts | Phase 2 |
-| Bank SMS detection → notification → categorize sheet | Phase 3 |
-| Recurring income/expenses, debts & credits, reminders | Phase 4 |
+| Accounts with computed balances, categories, charts | ✅ Phase 2 |
+| Bank SMS detection → notification → categorize sheet | ✅ Phase 3 |
+| Recurring income/expenses, debts & credits, reminders | ✅ Phase 4 |
 | Budgets, wishes, commitment score | Phase 5 |
+
+See [docs/PLAN.md](docs/PLAN.md) for what each phase covers, what is built, and
+the decisions behind it.
 
 ## Conventions
 
@@ -28,6 +31,13 @@ opens a one-tap categorization sheet.
 - **UI strings are Persian; code, comments, and docs are English.**
 - Pending SMS transactions are a `status` on `transactions`, not a separate
   table — one query drives both the inbox and the ledger.
+- **A recurring item is a schedule, an occurrence is one month of it, and a
+  transaction is the money.** Occurrences are materialized lazily by opening a
+  month, and settling one writes the transaction it stands for.
+- Reminder notification ids are offset by `ReminderScheduler.idBase`, because
+  pending-transaction alerts use the transaction's own id.
+- Scheduling is a **diff** against `scheduled_notifications`, so it can re-run
+  on every launch and every edit without resetting alarms already pending.
 
 ## Development
 

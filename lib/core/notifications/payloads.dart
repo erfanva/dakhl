@@ -29,6 +29,10 @@ sealed class NotificationPayload {
 
   /// Where tapping this notification should take the user.
   String get route;
+
+  /// Whether [route] is a modal above the navigation shell, which has to be
+  /// pushed, as opposed to a tab, which is navigated to.
+  bool get isModal;
 }
 
 /// An SMS-detected transaction waiting to be categorized.
@@ -42,9 +46,15 @@ class PendingTransactionPayload extends NotificationPayload {
 
   @override
   String get route => '/categorize/$transactionId';
+
+  @override
+  bool get isModal => true;
 }
 
-/// A recurring income/expense occurrence that is due (Phase 4).
+/// A recurring income/expense occurrence that is due.
+///
+/// There is no per-occurrence screen, so this lands on the month plan, where
+/// the row is one tap from being settled.
 class OccurrencePayload extends NotificationPayload {
   const OccurrencePayload(this.occurrenceId);
 
@@ -55,9 +65,12 @@ class OccurrencePayload extends NotificationPayload {
 
   @override
   String get route => '/month-plan';
+
+  @override
+  bool get isModal => false;
 }
 
-/// A debt whose due date is approaching (Phase 4).
+/// A debt whose due date is approaching.
 class DebtPayload extends NotificationPayload {
   const DebtPayload(this.debtId);
 
@@ -67,5 +80,8 @@ class DebtPayload extends NotificationPayload {
   String encode() => 'debt:$debtId';
 
   @override
-  String get route => '/debts';
+  String get route => '/debts/$debtId';
+
+  @override
+  bool get isModal => false;
 }

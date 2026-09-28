@@ -194,7 +194,9 @@ class ReminderRules extends Table {
 /// Bookkeeping so reminder scheduling can be diffed and made idempotent,
 /// and rebuilt after a reboot.
 class ScheduledNotifications extends Table {
-  /// Also the notification id handed to flutter_local_notifications.
+  /// The notification id handed to the OS is this plus
+  /// `ReminderScheduler.idBase` — pending-transaction alerts use the
+  /// transaction's own id, and the two id spaces must not overlap.
   IntColumn get id => integer().autoIncrement()();
   IntColumn get ownerKind => intEnum<OwnerKind>()();
   IntColumn get ownerId => integer()();

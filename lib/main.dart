@@ -5,6 +5,8 @@ import 'app/app.dart';
 import 'app/router.dart';
 import 'core/db/providers.dart';
 import 'core/notifications/notification_service.dart';
+import 'core/notifications/payloads.dart';
+import 'core/persian/jalali_utils.dart';
 import 'core/setup/device_setup.dart';
 import 'core/sms/sms_listener.dart';
 
@@ -18,11 +20,13 @@ Future<void> main() async {
   // first build rather than landing on the transactions tab.
   await notifications.captureLaunchPayload();
 
-  NotificationService.onTap = (payload) => appRouter.push(payload.route);
+  NotificationService.onTap = _navigateTo;
 
   // No-op when permission hasn't been granted yet; settings starts it the
   // moment the user grants it, without needing a restart.
   await container.read(smsListenerProvider).ensureStarted();
+
+  await _materializeCurrentMonths(container);
 
   runApp(
     UncontrolledProviderScope(
@@ -38,6 +42,18 @@ Future<void> main() async {
   }
 }
 
+/// Creates this month's and next month's recurring occurrences.
+///
+/// Opening the month plan does this too, but reminders are scheduled off
+/// occurrences — so a user who never visits the tab would silently get no
+/// reminders for the new month. Two months covers the scheduler's horizon.
+Future<void> _materializeCurrentMonths(ProviderContainer container) async {
+  final dao = container.read(recurringDaoProvider);
+  final month = JalaliMonth.now();
+  await dao.materialize(month);
+  await dao.materialize(month + 1);
+}
+
 /// Returns whether a notification launched the app (and was navigated to).
 bool _consumeLaunchPayload() {
   final payload = NotificationService.pendingLaunchPayload;
@@ -45,10 +61,19 @@ bool _consumeLaunchPayload() {
   NotificationService.pendingLaunchPayload = null;
 
   // Deferred so the router has finished its first build before navigating.
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    appRouter.push(payload.route);
-  });
+  WidgetsBinding.instance.addPostFrameCallback((_) => _navigateTo(payload));
   return true;
+}
+
+/// A modal (the categorize sheet) is pushed so it can be popped back off; a
+/// tab destination is navigated to, or the shell would end up stacked on
+/// itself.
+void _navigateTo(NotificationPayload payload) {
+  if (payload.isModal) {
+    appRouter.push(payload.route);
+  } else {
+    appRouter.go(payload.route);
+  }
 }
 
 /// Opens the setup checklist when SMS capture simply cannot work — a

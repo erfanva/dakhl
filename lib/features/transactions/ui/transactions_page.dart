@@ -7,6 +7,7 @@ import '../../../core/money/money.dart';
 import '../../../core/persian/digits.dart';
 import '../../../core/persian/jalali_utils.dart';
 import '../../../shared/ui/coming_soon_view.dart';
+import '../../../shared/ui/month_switcher.dart';
 import '../../../core/db/providers.dart';
 import '../../accounts/providers/accounts_providers.dart';
 import '../../setup/ui/setup_banner.dart';
@@ -18,7 +19,6 @@ class TransactionsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final month = ref.watch(selectedMonthProvider);
     final pendingCount = ref.watch(pendingCountProvider).value ?? 0;
 
     return Scaffold(
@@ -38,7 +38,7 @@ class TransactionsPage extends ConsumerWidget {
           if (pendingCount > 0) _PendingBanner(count: pendingCount),
           const _TotalBalanceCard(),
           const _AccountFilterRow(),
-          _MonthSwitcher(month: month),
+          const MonthSwitcher(),
           const Expanded(child: _TransactionList()),
         ],
       ),
@@ -167,39 +167,6 @@ class _AccountChip extends StatelessWidget {
         label: Text(label),
         selected: selected,
         onSelected: (_) => onTap(),
-      ),
-    );
-  }
-}
-
-class _MonthSwitcher extends ConsumerWidget {
-  const _MonthSwitcher({required this.month});
-
-  final JalaliMonth month;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final notifier = ref.read(selectedMonthProvider.notifier);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // The chevrons are matchTextDirection icons, so they mirror
-          // themselves under RTL — name them by their logical direction and
-          // let Flutter flip both the icon and the Row order.
-          IconButton(
-            icon: const Icon(Icons.chevron_left),
-            tooltip: 'ماه قبل',
-            onPressed: notifier.previous,
-          ),
-          Text(month.label, style: Theme.of(context).textTheme.titleMedium),
-          IconButton(
-            icon: const Icon(Icons.chevron_right),
-            tooltip: 'ماه بعد',
-            onPressed: notifier.next,
-          ),
-        ],
       ),
     );
   }

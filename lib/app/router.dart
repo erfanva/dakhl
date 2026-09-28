@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/accounts/ui/accounts_page.dart';
-import '../features/budgets/ui/placeholder_month_plan_page.dart';
+import '../features/month_plan/providers/month_plan_providers.dart';
+import '../features/month_plan/ui/month_plan_page.dart';
 import '../features/categories/ui/categories_page.dart';
 import '../features/categories/ui/category_detail_page.dart';
 import '../features/debug/ui/sms_injector_page.dart';
-import '../features/debts/ui/placeholder_debts_page.dart';
+import '../features/debts/ui/debt_detail_page.dart';
+import '../features/debts/ui/debts_page.dart';
 import '../features/more/ui/more_page.dart';
 import '../features/pending/ui/categorize_sheet.dart';
 import '../features/pending/ui/pending_inbox_page.dart';
@@ -68,7 +71,7 @@ final appRouter = GoRouter(
           routes: [
             GoRoute(
               path: '/month-plan',
-              builder: (context, state) => const PlaceholderMonthPlanPage(),
+              builder: (context, state) => const MonthPlanPage(),
             ),
           ],
         ),
@@ -77,7 +80,15 @@ final appRouter = GoRouter(
           routes: [
             GoRoute(
               path: '/debts',
-              builder: (context, state) => const PlaceholderDebtsPage(),
+              builder: (context, state) => const DebtsPage(),
+              routes: [
+                GoRoute(
+                  path: ':id',
+                  builder: (context, state) => DebtDetailPage(
+                    debtId: int.parse(state.pathParameters['id']!),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -140,21 +151,17 @@ final appRouter = GoRouter(
   ],
 );
 
-class _AppShell extends StatelessWidget {
+class _AppShell extends ConsumerWidget {
   const _AppShell({required this.navigationShell});
 
   final StatefulNavigationShell navigationShell;
 
-  static const _destinations = [
-    NavigationDestination(icon: Icon(Icons.receipt_long_outlined), selectedIcon: Icon(Icons.receipt_long), label: 'تراکنش‌ها'),
-    NavigationDestination(icon: Icon(Icons.event_note_outlined), selectedIcon: Icon(Icons.event_note), label: 'برنامه ماه'),
-    NavigationDestination(icon: Icon(Icons.handshake_outlined), selectedIcon: Icon(Icons.handshake), label: 'بدهی/طلب'),
-    NavigationDestination(icon: Icon(Icons.bar_chart_outlined), selectedIcon: Icon(Icons.bar_chart), label: 'گزارش‌ها'),
-    NavigationDestination(icon: Icon(Icons.more_horiz), selectedIcon: Icon(Icons.more_horiz), label: 'بیشتر'),
-  ];
-
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // A fixed expense whose date has passed is the thing most worth knowing
+    // without opening the tab first.
+    final overdue = ref.watch(overdueEntriesProvider).value?.length ?? 0;
+
     return Scaffold(
       body: navigationShell,
       bottomNavigationBar: NavigationBar(
@@ -163,7 +170,37 @@ class _AppShell extends StatelessWidget {
           index,
           initialLocation: index == navigationShell.currentIndex,
         ),
-        destinations: _destinations,
+        destinations: [
+          const NavigationDestination(
+              icon: Icon(Icons.receipt_long_outlined),
+              selectedIcon: Icon(Icons.receipt_long),
+              label: 'تراکنش‌ها'),
+          NavigationDestination(
+            icon: Badge.count(
+              count: overdue,
+              isLabelVisible: overdue > 0,
+              child: const Icon(Icons.event_note_outlined),
+            ),
+            selectedIcon: Badge.count(
+              count: overdue,
+              isLabelVisible: overdue > 0,
+              child: const Icon(Icons.event_note),
+            ),
+            label: 'برنامه ماه',
+          ),
+          const NavigationDestination(
+              icon: Icon(Icons.handshake_outlined),
+              selectedIcon: Icon(Icons.handshake),
+              label: 'بدهی/طلب'),
+          const NavigationDestination(
+              icon: Icon(Icons.bar_chart_outlined),
+              selectedIcon: Icon(Icons.bar_chart),
+              label: 'گزارش‌ها'),
+          const NavigationDestination(
+              icon: Icon(Icons.more_horiz),
+              selectedIcon: Icon(Icons.more_horiz),
+              label: 'بیشتر'),
+        ],
       ),
     );
   }

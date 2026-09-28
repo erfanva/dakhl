@@ -7,8 +7,8 @@ import '../../../core/db/database.dart';
 import '../../../core/money/money.dart';
 import '../../../core/persian/digits.dart';
 import '../../../core/persian/jalali_utils.dart';
+import '../../../shared/ui/month_switcher.dart';
 import '../../categories/category_style.dart';
-import '../../transactions/providers/transactions_providers.dart';
 import '../providers/reports_providers.dart';
 
 /// Reports: month summary, income-vs-expense trend, and category breakdown.
@@ -18,14 +18,12 @@ class ReportsPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final month = ref.watch(selectedMonthProvider);
-
     return Scaffold(
       appBar: AppBar(title: const Text('گزارش‌ها')),
       body: ListView(
         padding: const EdgeInsets.only(bottom: 24),
         children: [
-          _MonthSwitcher(month: month),
+          const MonthSwitcher(),
           const _SummaryCards(),
           const _SectionTitle('روند ۶ ماه اخیر'),
           const _TrendChart(),
@@ -33,36 +31,6 @@ class ReportsPage extends ConsumerWidget {
           const _CategoryBreakdown(type: TxnType.withdrawal),
           const _SectionTitle('درآمدها به تفکیک دسته'),
           const _CategoryBreakdown(type: TxnType.deposit),
-        ],
-      ),
-    );
-  }
-}
-
-class _MonthSwitcher extends ConsumerWidget {
-  const _MonthSwitcher({required this.month});
-
-  final JalaliMonth month;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final notifier = ref.read(selectedMonthProvider.notifier);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          IconButton(
-            icon: const Icon(Icons.chevron_left),
-            tooltip: 'ماه قبل',
-            onPressed: notifier.previous,
-          ),
-          Text(month.label, style: Theme.of(context).textTheme.titleMedium),
-          IconButton(
-            icon: const Icon(Icons.chevron_right),
-            tooltip: 'ماه بعد',
-            onPressed: notifier.next,
-          ),
         ],
       ),
     );

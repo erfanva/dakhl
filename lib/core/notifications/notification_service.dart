@@ -1,7 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/data/latest_10y.dart' as tz_data;
+import 'package:timezone/timezone.dart' as tz;
 
 import 'payloads.dart';
+import 'reminder_scheduler.dart';
 
 /// Notification channels. Separate channels let the user silence reminders
 /// without losing transaction alerts (or vice versa) from system settings.
@@ -26,11 +29,15 @@ abstract final class NotificationChannels {
 /// Usable from both the UI isolate and the background SMS isolate — the
 /// background isolate calls [init] then [showPendingTransaction] on its own
 /// plugin instance, since plugin state isn't shared across isolates.
-class NotificationService {
+class NotificationService implements ReminderSink {
   NotificationService([FlutterLocalNotificationsPlugin? plugin])
       : _plugin = plugin ?? FlutterLocalNotificationsPlugin();
 
   final FlutterLocalNotificationsPlugin _plugin;
+
+  /// Dakhl is an Iran-only app, so the zone is fixed rather than read from
+  /// the device — which would mean another plugin for no practical gain.
+  static const _timeZone = 'Asia/Tehran';
 
   /// Set when a tapped notification launched the app from cold. The router
   /// consumes this on first build.
@@ -40,6 +47,9 @@ class NotificationService {
   static void Function(NotificationPayload payload)? onTap;
 
   Future<void> init() async {
+    tz_data.initializeTimeZones();
+    tz.setLocalLocation(tz.getLocation(_timeZone));
+
     const settings = InitializationSettings(
       android: AndroidInitializationSettings('@mipmap/ic_launcher'),
     );
@@ -99,6 +109,46 @@ class NotificationService {
     );
   }
 
+  /// Schedules a reminder on the OS.
+  ///
+  /// Exact alarms need SCHEDULE_EXACT_ALARM, which Android 13+ may refuse to
+  /// grant — and a reminder that fires within the hour is worth far more than
+  /// one that throws. So exactness is asked for and then done without.
+  @override
+  Future<void> scheduleReminder({
+    required int id,
+    required DateTime fireAt,
+    required String title,
+    required String body,
+    required String payload,
+  }) async {
+    final android = _plugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+    final exact = await android?.canScheduleExactNotifications() ?? false;
+
+    await _plugin.zonedSchedule(
+      id: id,
+      title: title,
+      body: body,
+      scheduledDate: tz.TZDateTime.from(fireAt, tz.local),
+      androidScheduleMode: exact
+          ? AndroidScheduleMode.exactAllowWhileIdle
+          : AndroidScheduleMode.inexactAllowWhileIdle,
+      notificationDetails: NotificationDetails(
+        android: AndroidNotificationDetails(
+          NotificationChannels.reminders.id,
+          NotificationChannels.reminders.name,
+          channelDescription: NotificationChannels.reminders.description,
+          importance: Importance.high,
+          priority: Priority.high,
+          styleInformation: BigTextStyleInformation(body),
+        ),
+      ),
+      payload: payload,
+    );
+  }
+
+  @override
   Future<void> cancel(int id) => _plugin.cancel(id: id);
 }
 
