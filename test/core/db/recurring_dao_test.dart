@@ -241,7 +241,8 @@ void main() {
     test('settling moves an amount from outstanding to settled', () async {
       final plan = await dao.readMonthPlan(month);
       final rent = plan.expenses.firstWhere((e) => e.item.title == 'اجاره');
-      await dao.markDone(entry: rent);
+      // Paid inside the plan's month; the default (now) drifts out of it.
+      await dao.markDone(entry: rent, paidAt: rent.occurrence.dueAt);
 
       final updated = await dao.readMonthPlan(month);
       expect(updated.settledExpenseRial, 500000000);
